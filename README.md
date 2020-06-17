@@ -3,7 +3,10 @@
 
 #### Introduction
 
- For decades, house sale price forecasting has always been a hot topic. Unlike macroeconomists who make predictions of the housing market according to the economic situation, people usually would estimate the price of a certain house based on variables such as the size, location, and condition of the house. For this project, I decided to build models on house prices in order to investigate how internal and external factors would influence the sale price. I chose a dataset published on Kaggle in 2016 <https://www.kaggle.com/harlfoxem/housesalesprediction>. This dataset includes house sale prices for King County in Washington between May 2014 and May 2015. It’s scraped from KingCounty.gov with the dimension of 21 columns and 216,213 rows. Among 21 columns, there only exits one variable(date) that is not numerical, which suggests this data would be a good choice for building regression models based on it.
+ For decades, house sale price forecasting has always been a hot topic. Unlike macroeconomists who make predictions of the housing market according to the economic situation, people usually would estimate the price of a certain house based on variables such as the size, location, and condition of the house. For this project, I decided to build models on house prices in order to investigate how internal and external factors would influence the sale price. 
+ 
+#### Data
+Kaggle Dataset <https://www.kaggle.com/harlfoxem/housesalesprediction>
 
 #### Findings
 
