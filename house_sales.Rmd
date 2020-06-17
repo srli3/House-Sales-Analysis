@@ -1,0 +1,199 @@
+---
+title: "5291project"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggalt)
+library(ggmap)
+library(RColorBrewer)
+theme_set(theme_light())
+data <- read.csv("kc_house_data.csv")
+```
+
+# Data Clean
+```{r}
+df <- data %>%
+  na.omit() %>%
+  mutate(date = as.numeric(substr(date, 1, 8))) %>%
+  filter(bedrooms!=33) %>%
+  filter(sqft_lot <= 100000)
+  
+```
+
+#Heatmap of correlation between variables and price
+```{r}
+df_cor <- cor(df)
+heatmap(cor(df), col= colorRampPalette(brewer.pal(8, "Blues"))(25), key = TRUE) 
+```
+Darker the color is, greater the correlation.
+
+# EDA
+```{r}
+pairs(price~sqft_living + sqft_lot + sqft_basement, data = df)
+```
+
+```{r}
+#log-transformation
+pairs(log(price)~log(sqft_living) + log(sqft_lot) + log(sqft_basement), data = df)
+```
+
+
+```{r}
+#lm1: log(sqft_living),log(sqft_lot),log(sqft_basement)
+m1 <- lm(log(price)~log(sqft_living)+log(sqft_lot)+ifelse(sqft_basement==0,0,log(sqft_basement))+
+           log(sqft_living15)+log(sqft_lot15)+log(sqft_above)+zipcode+long+lat, data=df)
+summary(m1)
+```
+Surprisingly works fine.
+```{r}
+m1.2 <- lm(log(price)~log(sqft_living)+log(sqft_lot)+ifelse(sqft_basement==0,0,log(sqft_basement))+
+           log(sqft_living15)+log(sqft_lot15)+log(sqft_above), data=df)
+summary(m1.2)
+anova(m1, m1.2)
+```
+
+```{r}
+#full model
+m.full <- lm(log(price)~date+bedrooms+bathrooms+floors+waterfront+
+               view+condition+grade+yr_built+yr_renovated+
+               zipcode+long+lat+log(sqft_living15)+log(sqft_lot15)+
+               log(sqft_living)+log(sqft_lot)+ifelse(sqft_basement==0,0,log(sqft_basement))+
+               log(sqft_above), data=df)
+summary(m.full)
+```
+All features have p-value<0.05, which are significantly important to be included in the model.
+
+```{r}
+#multiple regression with less features 
+m2 <- lm(log(price)~date+bedrooms+floors+waterfront+
+               view+condition+yr_built+yr_renovated+
+               zipcode+long+lat+log(sqft_lot15)+
+               log(sqft_living)+log(sqft_lot)+ifelse(sqft_basement==0,0,log(sqft_basement)), data=df)
+summary(m2)
+```
+
+#Polynomial
+```{r}
+set.seed(99)
+#degree = 2 with all features
+
+poly1 <- lm(log(price)~ date+I(date^2)+bedrooms+I(bedrooms^2)+bathrooms+I(bathrooms^2)+
+              floors+I(floors^2)+waterfront+I(waterfront^2)+view+I(view^2)+
+              condition+I(condition^2)+grade+I(grade^2)+yr_built+I(yr_built^2)+yr_renovated+I(yr_renovated^2)+
+              zipcode+I(zipcode)+long+I(long^2)+lat+I(lat^2)+log(sqft_living15)+I(log(sqft_living15)^2)+
+              log(sqft_lot15)+I(log(sqft_lot15)^2)+log(sqft_living)+I(log(sqft_living)^2)+log(sqft_lot)+I(log(sqft_lot)^2)+ifelse(sqft_basement==0,0,log(sqft_basement))+I(ifelse(sqft_basement==0,0,log(sqft_basement))^2)+
+               log(sqft_above)+I(log(sqft_above)^2), data=df)
+summary(poly1)
+```
+Adjusted R-squared = 0.8047 
+```{r}
+#degree = 2 with selected features
+poly2 <- lm(log(price)~ date+bathrooms+
+              floors+waterfront+view+
+              condition+I(condition^2)+grade+yr_built+I(yr_built^2)+yr_renovated+I(yr_renovated^2)+
+              zipcode+long+I(long^2)+lat+I(lat^2)+log(sqft_living15)+I(log(sqft_living15)^2)+
+              log(sqft_lot15)+I(log(sqft_lot15)^2)+log(sqft_lot)+I(log(sqft_above)^2), data=df)
+summary(poly2)
+```
+
+Adjusted R-squared:  0.7954 
+```{r}
+#models for prediction
+#degree = 2 with selected features
+poly3 <- lm(log(price)~ date+bedrooms+I(bedrooms^2)+bathrooms+I(bathrooms^2)+
+              floors+I(floors^2)+waterfront+view+I(view^2)+
+              condition+I(condition^2)+yr_built+yr_renovated+I(yr_renovated^2)+
+              zipcode+I(zipcode^2), data=df)
+summary(poly3)
+```
+
+```{r}
+anova(m1, m2)
+anova(m2, m.full)
+anova(m1, m.full)
+anova(poly2, poly1)
+anova(poly1, m.full)
+```
+
+# Comparison of Proportions
+```{r}
+df2 <- df %>%
+  mutate(log_sqft_price = log(price/sqft_living)) %>%
+  mutate(log_sqft_lot = log(sqft_lot),
+         log_bedrooms = ifelse(bedrooms==0,0,log(bedrooms)))
+#approximately random distributed
+ggplot(data=df2, aes(x=log_sqft_price)) +
+  geom_histogram()
+ggplot(data=df2, aes(x=log(sqft_lot))) +
+  geom_histogram()
+ggplot(data=df2, aes(x=log_bedrooms)) +
+  geom_histogram()
+```
+
+```{r}
+summary(df2$log_sqft_price)
+summary(df2$log_sqft_lot)
+summary(df2$log_bedrooms)
+```
+
+```{r}
+#houses with log(bedrooms)>1.099 are more likely to have higher sqft_price (greater than 5.763)
+#pi1 = Prob(high log(sqft_price)|more than 1.099 log(bedrooms))
+#pi2 = Prob(high log(sqft_price)|less or equal to 1.099 log(bedrooms))
+#NH:pi1=pi2, AH:pi1>pi2
+
+s1 <- sum(df2$log_sqft_price>5.763 & df2$log_bedrooms>1.099)
+n1 <- sum(df2$log_sqft_price>5.763 & df2$log_bedrooms<=1.099)
+s2 <- sum(df2$log_sqft_price<=5.763 & df2$log_bedrooms>1.099)
+n2 <- sum(df2$log_sqft_price<=5.763 & df2$log_bedrooms<=1.099)
+
+bedroom_price <- matrix(c(s1, s2, n1, n2), ncol = 2, byrow = TRUE)
+colnames(bedroom_price) <- c("log_sqft_price>5.5","log_sqft_price<=5.5")
+rownames(bedroom_price) <- c("log_bedroom>1.099", "log_bedroom<=1.099")
+
+bedroom_price
+prop.test(c(1586, 3755), c(7029, 8776),alternative = "greater",correct = F)$p.value
+```
+```{r}
+#houses with log(sqft_lot)>8.924 are more likely to have higher sqft_price (greater than 5.763)
+#pi1 = Prob(high log(sqft_price)|more than 1.099 log(bedrooms))
+#pi2 = Prob(high log(sqft_price)|less or equal to 1.099 log(bedrooms))
+#NH:pi1=pi2, AH:pi1>pi2
+
+s1 <- sum(df2$log_sqft_price>5.763 & df2$log_sqft_lot>8.924)
+n1 <- sum(df2$log_sqft_price>5.763 & df2$log_sqft_lot<=8.924)
+s2 <- sum(df2$log_sqft_price<=5.763 & df2$log_sqft_lot>8.924)
+n2 <- sum(df2$log_sqft_price<=5.763 & df2$log_sqft_lot<=8.924)
+
+bedroom_price <- matrix(c(s1, s2, n1, n2), ncol = 2, byrow = TRUE)
+colnames(bedroom_price) <- c("log_sqft_price>5.5","log_sqft_price<=5.5")
+rownames(bedroom_price) <- c("log_sqft_lot>8.924", "log_sqft_lot<=8.924")
+
+bedroom_price
+prop.test(c(1847, 3494), c(8723, 7082),alternative = "greater",correct = F)$p.value
+```
+
+```{r}
+library(plyr)
+library(psych)
+multi.hist(df)
+
+```
+
+```{r}
+layout(matrix(c(1,2,3,4),2,2))
+plot(poly2)
+```
+
+```{r, warning=FALSE}
+#fit a test data
+test <- data.frame(date=20200501,bedrooms=2,bathrooms=2,
+              floors=1,waterfront=0,view=0,
+              condition=3,grade=7,yr_built=2016,yr_renovated=0,
+              zipcode=98004,long=-122.2,lat=47.57,sqft_living15=1830,
+              sqft_lot15=5070,sqft_living=1900,sqft_lot=5000,sqft_basement=0,
+               sqft_above=1550)
+exp(predict(poly1, test, interval = "prediction"))
+```
