@@ -11,4 +11,5 @@
 #### Findings & Summary 
 [My report](https://github.com/srli3/House-Sales-Analysis/blob/master/house_sales_report.pdf)
 
-
+#### Presentation 
+[Slide](https://github.com/srli3/House-Sales-Analysis/blob/master/house_sales_presentation.pdf)
